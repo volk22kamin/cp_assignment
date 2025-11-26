@@ -1,0 +1,171 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "app/**"
+      - ".github/workflows/pipeline.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: cp-assignment-cluster
+
+jobs:
+  # Job to check which services changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      validator: ${{ steps.filter.outputs.validator || github.event_name == 'workflow_dispatch' }}
+      uploader: ${{ steps.filter.outputs.uploader || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            validator:
+              - 'app/validator-service/**'
+              - '.github/workflows/pipeline.yml'
+            uploader:
+              - 'app/uploader-service/**'
+              - '.github/workflows/pipeline.yml'
+
+      - name: Debug Output
+        run: |
+          echo "Validator changed: ${{ steps.filter.outputs.validator }}"
+          echo "Uploader changed: ${{ steps.filter.outputs.uploader }}"
+          echo "Event name: ${{ github.event_name }}"
+
+  build-and-push:
+    needs: changes
+    if: ${{ needs.changes.outputs.validator == 'true' || needs.changes.outputs.uploader == 'true' }}
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: validator-service
+            path: app/validator-service
+            ecr_repo: cp-assignment/validator-service
+            trigger: ${{ needs.changes.outputs.validator }}
+          - name: uploader-service
+            path: app/uploader-service
+            ecr_repo: cp-assignment/uploader-service
+            trigger: ${{ needs.changes.outputs.uploader }}
+
+    steps:
+      - name: Checkout code
+        if: matrix.service.trigger == 'true'
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: matrix.service.trigger == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: matrix.service.trigger == 'true'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and tag Docker image
+        if: matrix.service.trigger == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ matrix.service.ecr_repo }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ${{ matrix.service.path }}
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Run Trivy security scan
+        if: matrix.service.trigger == 'true'
+        uses: aquasecurity/trivy-action@master
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ matrix.service.ecr_repo }}
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          format: "sarif"
+          output: "trivy-results-${{ matrix.service.name }}.sarif"
+          severity: "CRITICAL"
+          exit-code: "0"
+
+      - name: Upload Trivy results to GitHub Security
+        if: matrix.service.trigger == 'true' && (success() || failure())
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results-${{ matrix.service.name }}.sarif"
+          category: "trivy-${{ matrix.service.name }}"
+
+      - name: Upload Trivy scan report as artifact
+        if: matrix.service.trigger == 'true' && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-${{ matrix.service.name }}-${{ github.sha }}
+          path: "trivy-results-${{ matrix.service.name }}.sarif"
+          retention-days: 30
+
+      - name: Push image to Amazon ECR
+        if: matrix.service.trigger == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ matrix.service.ecr_repo }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: [changes, build-and-push]
+    if: ${{ needs.changes.outputs.validator == 'true' || needs.changes.outputs.uploader == 'true' }}
+    strategy:
+      matrix:
+        service:
+          - name: validator-service
+            ecs_service: cp-assignment-validator-service
+            trigger: ${{ needs.changes.outputs.validator }}
+          - name: uploader-service
+            ecs_service: cp-assignment-uploader-service
+            trigger: ${{ needs.changes.outputs.uploader }}
+
+    steps:
+      - name: Configure AWS credentials
+        if: matrix.service.trigger == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Force new deployment
+        if: matrix.service.trigger == 'true'
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ matrix.service.ecs_service }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for service stability
+        if: matrix.service.trigger == 'true'
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ matrix.service.ecs_service }} \
+            --region ${{ env.AWS_REGION }}
