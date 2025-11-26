@@ -1,4 +1,3 @@
-# Validator Service Task Definition
 resource "aws_ecs_task_definition" "validator_service" {
   family                   = "${var.project_name}-validator-service"
   network_mode             = "awsvpc"
@@ -55,7 +54,6 @@ resource "aws_ecs_task_definition" "validator_service" {
   }
 }
 
-# Uploader Service Task Definition
 resource "aws_ecs_task_definition" "uploader_service" {
   family                   = "${var.project_name}-uploader-service"
   network_mode             = "awsvpc"
