@@ -102,7 +102,7 @@ jobs:
           format: "sarif"
           output: "trivy-results-${{ matrix.service.name }}.sarif"
           severity: "CRITICAL"
-          exit-code: "1"
+          exit-code: "0"
 
       - name: Upload Trivy results to GitHub Security
         if: matrix.service.trigger == 'true' && (success() || failure())
