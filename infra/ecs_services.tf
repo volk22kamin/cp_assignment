@@ -18,6 +18,8 @@ resource "aws_ecs_service" "validator_service" {
     container_port   = var.validator_service_port
   }
 
+  health_check_grace_period_seconds = 60
+
   depends_on = [
     aws_lb_listener.http
   ]

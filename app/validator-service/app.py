@@ -10,7 +10,6 @@ app = Flask(__name__)
 ssm_client = boto3.client('ssm')
 sqs_client = boto3.client('sqs')
 
-# Environment variables
 SSM_TOKEN_PARAMETER = os.environ.get('SSM_TOKEN_PARAMETER', '/app/token')
 SQS_QUEUE_URL = os.environ.get('SQS_QUEUE_URL')
 
