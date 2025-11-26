@@ -1,4 +1,3 @@
-# Application Load Balancer
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
   internal           = false
@@ -11,7 +10,6 @@ resource "aws_lb" "main" {
   }
 }
 
-# Target Group
 resource "aws_lb_target_group" "validator_service" {
   name        = "${var.project_name}-validator-tg"
   port        = var.validator_service_port
@@ -34,7 +32,6 @@ resource "aws_lb_target_group" "validator_service" {
   }
 }
 
-# Listener
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"

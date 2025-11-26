@@ -74,7 +74,6 @@ def process_request():
         if not is_valid:
             return jsonify({"error": error_msg}), 400
         
-        # Send to SQS
         try:
             response = sqs_client.send_message(
                 QueueUrl=SQS_QUEUE_URL,

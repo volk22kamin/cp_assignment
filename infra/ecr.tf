@@ -1,4 +1,3 @@
-# ECR Repositories
 resource "aws_ecr_repository" "validator_service" {
   name                 = "${var.project_name}/validator-service"
   image_tag_mutability = "MUTABLE"
@@ -25,7 +24,6 @@ resource "aws_ecr_repository" "uploader_service" {
   }
 }
 
-# ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
 
@@ -39,7 +37,6 @@ resource "aws_ecs_cluster" "main" {
   }
 }
 
-# CloudWatch Log Groups
 resource "aws_cloudwatch_log_group" "validator_service" {
   name              = "/ecs/${var.project_name}/validator-service"
   retention_in_days = 7

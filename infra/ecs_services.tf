@@ -1,4 +1,3 @@
-# Validator Service
 resource "aws_ecs_service" "validator_service" {
   name            = "${var.project_name}-validator-service"
   cluster         = aws_ecs_cluster.main.id
@@ -29,7 +28,6 @@ resource "aws_ecs_service" "validator_service" {
   }
 }
 
-# Uploader Service
 resource "aws_ecs_service" "uploader_service" {
   name            = "${var.project_name}-uploader-service"
   cluster         = aws_ecs_cluster.main.id
