@@ -10,6 +10,10 @@ on:
       - ".github/workflows/pipeline.yml"
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  security-events: write
+
 env:
   AWS_REGION: us-east-1
   ECS_CLUSTER: cp-assignment-cluster
@@ -75,7 +79,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build and tag Docker image
         if: matrix.service.trigger == 'true'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -85,6 +89,43 @@ jobs:
           cd ${{ matrix.service.path }}
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Run Trivy security scan
+        if: matrix.service.trigger == 'true'
+        uses: aquasecurity/trivy-action@master
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ matrix.service.ecr_repo }}
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          format: "sarif"
+          output: "trivy-results-${{ matrix.service.name }}.sarif"
+          severity: "CRITICAL"
+          exit-code: "1"
+
+      - name: Upload Trivy results to GitHub Security
+        if: matrix.service.trigger == 'true' && (success() || failure())
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-results-${{ matrix.service.name }}.sarif"
+          category: "trivy-${{ matrix.service.name }}"
+
+      - name: Upload Trivy scan report as artifact
+        if: matrix.service.trigger == 'true' && (success() || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-${{ matrix.service.name }}-${{ github.sha }}
+          path: "trivy-results-${{ matrix.service.name }}.sarif"
+          retention-days: 30
+
+      - name: Push image to Amazon ECR
+        if: matrix.service.trigger == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ matrix.service.ecr_repo }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 

@@ -32,6 +32,11 @@ The system consists of:
 │       ├── Dockerfile
 │       └── requirements.txt
 ├── infra/                    # Terraform infrastructure
+│   ├── backend-s3/           # S3 backend for Terraform state (stores state locally)
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── locals.tf
+│   │   └── outputs.tf
 │   ├── provider.tf
 │   ├── variables.tf
 │   ├── network.tf
@@ -54,6 +59,8 @@ This project uses a two-tier Terraform state management approach:
 1. **Backend S3 Module** (`infra/backend-s3/`): Creates the S3 bucket for storing Terraform state. This module itself stores its state **locally** in `infra/backend-s3/terraform.tfstate`.
 2. **Main Infrastructure** (`infra/`): Uses the S3 backend created by the backend-s3 module to store its state remotely.
 
+**Note on State Locking**: This setup does not use DynamoDB for state locking. Since this is a single-developer environment with no automated Terraform runs in the CI/CD pipeline, state locking is not necessary. In a production environment with multiple developers or automated Terraform deployments, DynamoDB state locking should be added to prevent concurrent state modifications.
+
 ### Initial Setup
 
 First, create the S3 backend bucket:
@@ -69,7 +76,6 @@ Then deploy the main infrastructure:
 ```bash
 cd ..
 terraform init
-terraform apply
 ```
 
 ## Deployment Steps
