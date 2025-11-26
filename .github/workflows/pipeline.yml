@@ -29,8 +29,10 @@ jobs:
           filters: |
             validator:
               - 'app/validator-service/**'
+              - '.github/workflows/pipeline.yml'
             uploader:
               - 'app/uploader-service/**'
+              - '.github/workflows/pipeline.yml'
 
   build-and-push:
     needs: changes
