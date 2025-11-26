@@ -8,7 +8,7 @@ on:
     paths:
       - "app/**"
       - ".github/workflows/pipeline.yml"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 env:
   AWS_REGION: us-east-1
@@ -19,8 +19,8 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      validator: ${{ steps.filter.outputs.validator }}
-      uploader: ${{ steps.filter.outputs.uploader }}
+      validator: ${{ steps.filter.outputs.validator || github.event_name == 'workflow_dispatch' }}
+      uploader: ${{ steps.filter.outputs.uploader || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -33,6 +33,12 @@ jobs:
             uploader:
               - 'app/uploader-service/**'
               - '.github/workflows/pipeline.yml'
+
+      - name: Debug Output
+        run: |
+          echo "Validator changed: ${{ steps.filter.outputs.validator }}"
+          echo "Uploader changed: ${{ steps.filter.outputs.uploader }}"
+          echo "Event name: ${{ github.event_name }}"
 
   build-and-push:
     needs: changes

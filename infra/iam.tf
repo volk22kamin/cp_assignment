@@ -1,4 +1,3 @@
-# ECS Task Execution Role
 resource "aws_iam_role" "ecs_task_execution" {
   name = "${var.project_name}-ecs-task-execution"
 
@@ -25,7 +24,6 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# ECS Task Role for Validator Service
 resource "aws_iam_role" "validator_task" {
   name = "${var.project_name}-validator-task"
 
@@ -78,7 +76,6 @@ resource "aws_iam_role_policy" "validator_task" {
   })
 }
 
-# ECS Task Role for Uploader Service
 resource "aws_iam_role" "uploader_task" {
   name = "${var.project_name}-uploader-task"
 
