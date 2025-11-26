@@ -13,7 +13,7 @@ The system consists of:
 ## Prerequisites
 
 - AWS Account with appropriate permissions
-- AWS CLI configured with `CHECKPOINT` profile
+- AWS CLI configured with `CHECKPOINT` profile (credentials stored in `~/.aws/credentials`)
 - Terraform >= 1.0
 - Docker
 - Git
@@ -47,13 +47,39 @@ The system consists of:
         └── pipeline.yml      # CI/CD pipeline
 ```
 
+## Infrastructure State Management
+
+This project uses a two-tier Terraform state management approach:
+
+1. **Backend S3 Module** (`infra/backend-s3/`): Creates the S3 bucket for storing Terraform state. This module itself stores its state **locally** in `infra/backend-s3/terraform.tfstate`.
+2. **Main Infrastructure** (`infra/`): Uses the S3 backend created by the backend-s3 module to store its state remotely.
+
+### Initial Setup
+
+First, create the S3 backend bucket:
+
+```bash
+cd infra/backend-s3
+terraform init
+terraform apply
+```
+
+Then deploy the main infrastructure:
+
+```bash
+cd ..
+terraform init
+terraform apply
+```
+
 ## Deployment Steps
 
-### 1. Initialize and Deploy Infrastructure
+### 1. Deploy Infrastructure
+
+After the initial setup above, you can deploy or update the infrastructure:
 
 ```bash
 cd infra
-terraform init
 terraform plan
 terraform apply
 ```
@@ -65,36 +91,14 @@ After deployment, note the outputs:
 - `ecr_uploader_repository_url`: ECR repo for uploader service
 - `api_token`: Token for API authentication (run `terraform output -raw api_token`)
 
-### 2. Build and Push Docker Images
-
-```bash
-# Get ECR login
-aws ecr get-login-password --region us-east-1 --profile CHECKPOINT | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
-
-# Build and push validator service
-cd app/validator-service
-docker build -t <ECR_VALIDATOR_URL>:latest .
-docker push <ECR_VALIDATOR_URL>:latest
-
-# Build and push uploader service
-cd ../uploader-service
-docker build -t <ECR_UPLOADER_URL>:latest .
-docker push <ECR_UPLOADER_URL>:latest
-```
-
-### 3. Update ECS Services
-
-```bash
-aws ecs update-service --cluster cp-assignment-cluster --service cp-assignment-validator-service --force-new-deployment --profile CHECKPOINT
-aws ecs update-service --cluster cp-assignment-cluster --service cp-assignment-uploader-service --force-new-deployment --profile CHECKPOINT
-```
-
-### 4. Configure GitHub Secrets
+### 2. Configure GitHub Secrets
 
 For CI/CD to work, add these secrets to your GitHub repository:
 
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
+
+**Note**: Docker images are **not** uploaded manually to ECR. The CI/CD pipeline automatically builds and pushes images when changes are pushed to the `main` branch.
 
 ## Testing
 
@@ -107,36 +111,42 @@ TOKEN=$(cd infra && terraform output -raw api_token)
 # Get ALB DNS
 ALB_DNS=$(cd infra && terraform output -raw alb_dns_name)
 
-# Valid request
+# Valid request (token in body)
 curl -X POST http://$ALB_DNS/ \
-  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "field1": "value1",
-    "field2": "value2",
-    "field3": "value3",
-    "field4": "value4"
+    "token": "'$TOKEN'",
+    "data": {
+      "field1": "value1",
+      "field2": "value2",
+      "field3": "value3",
+      "field4": "value4"
+    }
   }'
 
 # Invalid token
 curl -X POST http://$ALB_DNS/ \
-  -H "Authorization: Bearer invalid-token" \
   -H "Content-Type: application/json" \
   -d '{
-    "field1": "value1",
-    "field2": "value2",
-    "field3": "value3",
-    "field4": "value4"
+    "token": "invalid-token",
+    "data": {
+      "field1": "value1",
+      "field2": "value2",
+      "field3": "value3",
+      "field4": "value4"
+    }
   }'
 
 # Invalid payload (only 3 fields)
 curl -X POST http://$ALB_DNS/ \
-  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "field1": "value1",
-    "field2": "value2",
-    "field3": "value3"
+    "token": "'$TOKEN'",
+    "data": {
+      "field1": "value1",
+      "field2": "value2",
+      "field3": "value3"
+    }
   }'
 ```
 
@@ -149,10 +159,17 @@ aws s3 ls s3://$(cd infra && terraform output -raw s3_bucket_name)/messages/ --r
 
 ## CI/CD Pipeline
 
-The GitHub Actions pipeline automatically:
+The GitHub Actions pipeline automatically handles all Docker image builds and deployments:
 
-1. **CI Job**: Builds and pushes Docker images to ECR on push to `main`
-2. **CD Job**: Updates ECS services to deploy new images
+1. **Changes Detection**: Detects which services changed (validator or uploader)
+2. **Build and Push**: Builds Docker images and pushes them to ECR (triggered on push to `main` or `dev` branches)
+3. **Deploy**: Updates ECS services to deploy new images
+
+**Important**: Docker images are **only** uploaded to ECR through the CI/CD pipeline, not manually. The pipeline is triggered when:
+
+- Changes are pushed to the `app/` directory
+- Changes are made to the pipeline configuration
+- Manual workflow dispatch is triggered
 
 ## Cleanup
 
@@ -163,7 +180,7 @@ terraform destroy
 
 ## Architecture Decisions
 
-- **Public Subnets**: ECS tasks run in public subnets with public IPs to avoid NAT Gateway costs
+- **Public Subnets**: ECS tasks run in public subnets with public IPs to avoid NAT Gateway costs, Could also be achieved with private subnets and VPC Endpoints.
 - **Fargate**: Serverless container execution for simplicity
 - **SSM Parameter Store**: Secure token storage
 - **SQS Long Polling**: Efficient message retrieval
@@ -171,8 +188,8 @@ terraform destroy
 
 ## Security Considerations
 
-- S3 bucket has public access blocked
 - Security groups restrict traffic appropriately
 - IAM roles follow least privilege principle
 - API token stored securely in SSM Parameter Store
 - Secrets managed via GitHub Secrets for CI/CD
+- S3 bucket versioning enabled for state management and message storage
