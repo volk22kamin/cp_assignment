@@ -57,7 +57,7 @@ def poll_queue():
                 VisibilityTimeout=30
             )
             
-            messages = response.get('Messages', [])
+            messages = response.get('Messages', []) 
             
             if messages:
                 print(f"Received {len(messages)} message(s)")
