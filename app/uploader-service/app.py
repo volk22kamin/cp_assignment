@@ -4,11 +4,9 @@ import time
 import boto3
 from datetime import datetime
 
-# AWS clients
 sqs_client = boto3.client('sqs')
 s3_client = boto3.client('s3')
 
-# Environment variables
 SQS_QUEUE_URL = os.environ.get('SQS_QUEUE_URL')
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
 POLL_INTERVAL = int(os.environ.get('POLL_INTERVAL', '10'))
@@ -16,7 +14,6 @@ POLL_INTERVAL = int(os.environ.get('POLL_INTERVAL', '10'))
 def process_message(message):
     """Process a single SQS message and upload to S3"""
     try:
-        # Parse message body
         body = json.loads(message['Body'])
         
         # Generate S3 key with timestamp
@@ -24,7 +21,6 @@ def process_message(message):
         message_id = message['MessageId']
         s3_key = f"messages/{timestamp}_{message_id}.json"
         
-        # Upload to S3
         s3_client.put_object(
             Bucket=S3_BUCKET_NAME,
             Key=s3_key,
@@ -34,7 +30,6 @@ def process_message(message):
         
         print(f"Successfully uploaded message {message_id} to s3://{S3_BUCKET_NAME}/{s3_key}")
         
-        # Delete message from queue
         sqs_client.delete_message(
             QueueUrl=SQS_QUEUE_URL,
             ReceiptHandle=message['ReceiptHandle']
@@ -55,11 +50,10 @@ def poll_queue():
     
     while True:
         try:
-            # Receive messages from SQS
             response = sqs_client.receive_message(
                 QueueUrl=SQS_QUEUE_URL,
                 MaxNumberOfMessages=10,
-                WaitTimeSeconds=20,  # Long polling
+                WaitTimeSeconds=20, 
                 VisibilityTimeout=30
             )
             
@@ -72,7 +66,6 @@ def poll_queue():
             else:
                 print("No messages in queue")
             
-            # Wait before next poll
             time.sleep(POLL_INTERVAL)
             
         except Exception as e:
