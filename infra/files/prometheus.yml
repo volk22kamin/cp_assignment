@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "cp-assignment"
+    environment: "production"
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Validator service - using static config for now
+  # Will be discovered via ECS service discovery
+  - job_name: "validator-service"
+    static_configs:
+      - targets: []
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "validator-service"
+
+  # Uploader service - using static config for now
+  - job_name: "uploader-service"
+    static_configs:
+      - targets: []
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "uploader-service"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "/etc/prometheus/alerts.yml"

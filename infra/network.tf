@@ -60,6 +60,22 @@ resource "aws_security_group" "alb" {
     description = "Allow HTTP from anywhere"
   }
 
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow Prometheus access from anywhere"
+  }
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow Grafana access from anywhere"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

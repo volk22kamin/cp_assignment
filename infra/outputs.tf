@@ -43,3 +43,25 @@ output "uploader_service_name" {
   description = "Name of the uploader ECS service"
   value       = aws_ecs_service.uploader_service.name
 }
+
+output "prometheus_url" {
+  description = "URL to access Prometheus"
+  value       = "http://${aws_lb.main.dns_name}/prometheus"
+}
+
+output "grafana_url" {
+  description = "URL to access Grafana"
+  value       = "http://${aws_lb.main.dns_name}/grafana"
+}
+
+output "grafana_admin_password" {
+  description = "Grafana admin password (sensitive)"
+  value       = random_password.grafana_admin.result
+  sensitive   = true
+}
+
+output "grafana_admin_username" {
+  description = "Grafana admin username"
+  value       = "admin"
+}
+

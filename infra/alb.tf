@@ -32,6 +32,52 @@ resource "aws_lb_target_group" "validator_service" {
   }
 }
 
+# Target Group for Prometheus
+resource "aws_lb_target_group" "prometheus" {
+  name        = "${var.project_name}-prometheus-tg"
+  port        = 9090
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    path                = "/-/healthy"
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "${var.project_name}-prometheus-tg"
+  }
+}
+
+# Target Group for Grafana
+resource "aws_lb_target_group" "grafana" {
+  name        = "${var.project_name}-grafana-tg"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    path                = "/api/health"
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "${var.project_name}-grafana-tg"
+  }
+}
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
@@ -42,3 +88,47 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.validator_service.arn
   }
 }
+
+# Listener Rule for Prometheus (path-based routing)
+resource "aws_lb_listener_rule" "prometheus" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.prometheus.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/prometheus*"]
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-prometheus-rule"
+  }
+}
+
+# Listener Rule for Grafana (path-based routing)
+resource "aws_lb_listener_rule" "grafana" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 101
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.grafana.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/grafana*"]
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-grafana-rule"
+  }
+}
+
+
