@@ -11,7 +11,7 @@ s3_client = boto3.client('s3')
 # Environment variables
 SQS_QUEUE_URL = os.environ.get('SQS_QUEUE_URL')
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
-POLL_INTERVAL = int(os.environ.get('POLL_INTERVAL', '10'))  # seconds
+POLL_INTERVAL = int(os.environ.get('POLL_INTERVAL', '10'))
 
 def process_message(message):
     """Process a single SQS message and upload to S3"""
