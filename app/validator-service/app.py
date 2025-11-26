@@ -56,24 +56,26 @@ def health():
 def process_request():
     """Main endpoint to process incoming requests"""
     try:
-        # Get token from header
-        token = request.headers.get('Authorization')
+        # Get JSON payload
+        request_body = request.get_json()
+        if not request_body:
+            return jsonify({"error": "Missing JSON payload"}), 400
+
+        # Get token from body
+        token = request_body.get('token')
         if not token:
-            return jsonify({"error": "Missing Authorization header"}), 401
-        
-        # Remove 'Bearer ' prefix if present
-        if token.startswith('Bearer '):
-            token = token[7:]
+            return jsonify({"error": "Missing token in body"}), 401
         
         # Validate token
         if not validate_token(token):
             return jsonify({"error": "Invalid token"}), 401
         
-        # Get and validate payload
-        data = request.get_json()
+        # Get data object
+        data = request_body.get('data')
         if not data:
-            return jsonify({"error": "Missing JSON payload"}), 400
+            return jsonify({"error": "Missing 'data' field in payload"}), 400
         
+        # Validate payload data
         is_valid, error_msg = validate_payload(data)
         if not is_valid:
             return jsonify({"error": error_msg}), 400
