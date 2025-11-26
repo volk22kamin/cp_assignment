@@ -6,7 +6,6 @@ from functools import lru_cache
 
 app = Flask(__name__)
 
-# AWS clients
 ssm_client = boto3.client('ssm')
 sqs_client = boto3.client('sqs')
 
@@ -55,26 +54,22 @@ def health():
 def process_request():
     """Main endpoint to process incoming requests"""
     try:
-        # Get JSON payload
+
         request_body = request.get_json()
         if not request_body:
             return jsonify({"error": "Missing JSON payload"}), 400
 
-        # Get token from body
         token = request_body.get('token')
         if not token:
             return jsonify({"error": "Missing token in body"}), 401
         
-        # Validate token
         if not validate_token(token):
             return jsonify({"error": "Invalid token"}), 401
         
-        # Get data object
         data = request_body.get('data')
         if not data:
             return jsonify({"error": "Missing 'data' field in payload"}), 400
         
-        # Validate payload data
         is_valid, error_msg = validate_payload(data)
         if not is_valid:
             return jsonify({"error": error_msg}), 400
