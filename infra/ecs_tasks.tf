@@ -137,8 +137,7 @@ resource "aws_ecs_task_definition" "prometheus" {
         "--web.console.libraries=/usr/share/prometheus/console_libraries",
         "--web.console.templates=/usr/share/prometheus/consoles",
         "--web.enable-lifecycle",
-        "--web.external-url=http://localhost/prometheus",
-        "--web.route-prefix=/"
+        "--web.external-url=/prometheus"
       ]
 
       mountPoints = [

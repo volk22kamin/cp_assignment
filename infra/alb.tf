@@ -101,7 +101,7 @@ resource "aws_lb_listener_rule" "prometheus" {
 
   condition {
     path_pattern {
-      values = ["/prometheus*"]
+      values = ["/prometheus", "/prometheus/*"]
     }
   }
 
