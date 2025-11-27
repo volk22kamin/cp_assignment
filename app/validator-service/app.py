@@ -19,6 +19,16 @@ TOKEN_VALIDATION_TOTAL = Counter('validator_token_validation_total', 'Total numb
 PAYLOAD_VALIDATION_TOTAL = Counter('validator_payload_validation_total', 'Total number of payload validations', ['status'])
 SQS_SENT_TOTAL = Counter('validator_sqs_sent_total', 'Total number of messages sent to SQS', ['status'])
 
+# Initialize metrics
+TOKEN_VALIDATION_TOTAL.labels(status='valid')
+TOKEN_VALIDATION_TOTAL.labels(status='invalid')
+PAYLOAD_VALIDATION_TOTAL.labels(status='valid')
+PAYLOAD_VALIDATION_TOTAL.labels(status='invalid_type')
+PAYLOAD_VALIDATION_TOTAL.labels(status='invalid_length')
+PAYLOAD_VALIDATION_TOTAL.labels(status='invalid_field_type')
+SQS_SENT_TOTAL.labels(status='success')
+SQS_SENT_TOTAL.labels(status='error')
+
 @lru_cache(maxsize=1)
 def get_valid_token():
     """Fetch and cache the valid token from SSM Parameter Store"""

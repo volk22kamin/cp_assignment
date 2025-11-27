@@ -224,6 +224,10 @@ resource "aws_ecs_task_definition" "grafana" {
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
   task_role_arn            = aws_iam_role.grafana_task.arn
 
+  volume {
+    name = "grafana-provisioning"
+  }
+
   container_definitions = jsonencode([
     {
       name  = "grafana"
@@ -233,6 +237,14 @@ resource "aws_ecs_task_definition" "grafana" {
         {
           containerPort = 3000
           protocol      = "tcp"
+        }
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "grafana-provisioning"
+          containerPath = "/etc/grafana/provisioning"
+          readOnly      = false
         }
       ]
 
@@ -277,6 +289,34 @@ resource "aws_ecs_task_definition" "grafana" {
         timeout     = 5
         retries     = 3
         startPeriod = 60
+      }
+    },
+    {
+      name      = "grafana-config-sidecar"
+      image     = "busybox:latest"
+      essential = false
+
+      command = [
+        "sh",
+        "-c",
+        "mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards && echo '${replace(file("${path.module}/files/grafana-datasource.yml"), "<MONITORING_ALB_DNS>", aws_lb.monitoring.dns_name)}' > /etc/grafana/provisioning/datasources/datasource.yml && echo '${file("${path.module}/files/grafana-dashboard-provider.yml")}' > /etc/grafana/provisioning/dashboards/dashboard-provider.yml && echo '${file("${path.module}/files/validator-dashboard.json")}' > /etc/grafana/provisioning/dashboards/validator-dashboard.json"
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "grafana-provisioning"
+          containerPath = "/etc/grafana/provisioning"
+          readOnly      = false
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.grafana.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "config-sidecar"
+        }
       }
     }
   ])
