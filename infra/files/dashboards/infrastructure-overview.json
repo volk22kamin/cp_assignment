@@ -121,10 +121,10 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 4
+        "x": 6,
+        "y": 0
       },
-      "id": 4,
+      "id": 8,
       "options": {
         "legend": {
           "calcs": [],
@@ -138,12 +138,12 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "prometheus_tsdb_head_series",
-          "legendFormat": "Time Series",
+          "expr": "aws_applicationelb_request_count_sum",
+          "legendFormat": "ALB Requests",
           "refId": "A"
         }
       ],
-      "title": "Prometheus Time Series",
+      "title": "ALB Requests (Sum)",
       "type": "timeseries"
     },
     {
@@ -184,16 +184,16 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "percent"
         }
       },
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 4
+        "x": 0,
+        "y": 8
       },
-      "id": 6,
+      "id": 10,
       "options": {
         "legend": {
           "calcs": [],
@@ -207,18 +207,91 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "process_resident_memory_bytes{job=\"prometheus\"}",
-          "legendFormat": "Memory Usage",
+          "expr": "aws_ecs_cpuutilization_average",
+          "legendFormat": "ECS CPU {{dimension_ServiceName}}",
           "refId": "A"
         }
       ],
-      "title": "Prometheus Memory Usage",
+      "title": "ECS CPU Utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "aws_sqs_approximate_number_of_messages_visible_average",
+          "legendFormat": "SQS Messages {{dimension_QueueName}}",
+          "refId": "A"
+        }
+      ],
+      "title": "SQS Queue Depth",
       "type": "timeseries"
     }
   ],
   "schemaVersion": 27,
   "style": "dark",
-  "tags": ["prometheus", "infrastructure"],
+  "tags": [
+    "prometheus",
+    "infrastructure",
+    "aws"
+  ],
   "templating": {
     "list": []
   },
@@ -228,7 +301,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Infrastructure Overview",
+  "title": "Infrastructure Overview (AWS)",
   "uid": "infrastructure-overview",
-  "version": 0
+  "version": 1
 }

@@ -168,6 +168,15 @@ resource "aws_iam_role_policy" "prometheus_task" {
           "ec2:DescribeInstances"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricStatistics",
+          "tag:GetResources"
+        ]
+        Resource = "*"
       }
     ]
   })
