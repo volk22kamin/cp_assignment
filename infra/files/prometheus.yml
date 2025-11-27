@@ -6,12 +6,10 @@ global:
     environment: "production"
 
 scrape_configs:
-  # Prometheus self-monitoring
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
 
-  # Validator service
   - job_name: "validator-service"
     dns_sd_configs:
       - names:
@@ -19,7 +17,6 @@ scrape_configs:
         type: "A"
         port: 8080
 
-  # Uploader service
   - job_name: "uploader-service"
     dns_sd_configs:
       - names:

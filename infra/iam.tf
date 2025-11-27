@@ -130,7 +130,6 @@ resource "aws_iam_role_policy" "uploader_task" {
   })
 }
 
-# Prometheus Task Role
 resource "aws_iam_role" "prometheus_task" {
   name = "${var.project_name}-prometheus-task"
 
@@ -192,7 +191,6 @@ resource "aws_iam_role_policy" "prometheus_task" {
   })
 }
 
-# Grafana Task Role
 resource "aws_iam_role" "grafana_task" {
   name = "${var.project_name}-grafana-task"
 
@@ -214,28 +212,6 @@ resource "aws_iam_role" "grafana_task" {
   }
 }
 
-resource "aws_iam_role_policy" "grafana_task" {
-  name = "${var.project_name}-grafana-task-policy"
-  role = aws_iam_role.grafana_task.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ssm:GetParameter",
-          "ssm:GetParameters"
-        ]
-        Resource = [
-          aws_ssm_parameter.grafana_admin_password.arn
-        ]
-      }
-    ]
-  })
-}
-
-# Update ECS Task Execution Role to allow reading Grafana password from SSM
 resource "aws_iam_role_policy" "ecs_task_execution_ssm" {
   name = "${var.project_name}-ecs-task-execution-ssm"
   role = aws_iam_role.ecs_task_execution.id
