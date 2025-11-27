@@ -299,7 +299,7 @@ resource "aws_ecs_task_definition" "grafana" {
       command = [
         "sh",
         "-c",
-        "mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards && echo '${replace(file("${path.module}/files/grafana-datasource.yml"), "<MONITORING_ALB_DNS>", aws_lb.monitoring.dns_name)}' > /etc/grafana/provisioning/datasources/datasource.yml && echo '${file("${path.module}/files/grafana-dashboard-provider.yml")}' > /etc/grafana/provisioning/dashboards/dashboard-provider.yml && echo '${file("${path.module}/files/validator-dashboard.json")}' > /etc/grafana/provisioning/dashboards/validator-dashboard.json"
+        "mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards && echo '${replace(file("${path.module}/files/grafana-datasource.yml"), "<MONITORING_ALB_DNS>", aws_lb.monitoring.dns_name)}' > /etc/grafana/provisioning/datasources/datasource.yml && echo '${file("${path.module}/files/grafana-dashboard-provider.yml")}' > /etc/grafana/provisioning/dashboards/dashboard-provider.yml && echo '${file("${path.module}/files/validator-dashboard.json")}' > /etc/grafana/provisioning/dashboards/validator-dashboard.json && echo '${file("${path.module}/files/uploader-dashboard.json")}' > /etc/grafana/provisioning/dashboards/uploader-dashboard.json"
       ]
 
       mountPoints = [
