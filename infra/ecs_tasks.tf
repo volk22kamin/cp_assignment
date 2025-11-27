@@ -143,6 +143,13 @@ resource "aws_ecs_task_definition" "prometheus" {
         "--web.enable-lifecycle"
       ]
 
+      dependsOn = [
+        {
+          containerName = "prometheus-config-sidecar"
+          condition     = "SUCCESS"
+        }
+      ]
+
       mountPoints = [
         {
           sourceVolume  = "prometheus-data"
@@ -237,6 +244,13 @@ resource "aws_ecs_task_definition" "grafana" {
         {
           containerPort = 3000
           protocol      = "tcp"
+        }
+      ]
+
+      dependsOn = [
+        {
+          containerName = "grafana-config-sidecar"
+          condition     = "SUCCESS"
         }
       ]
 
