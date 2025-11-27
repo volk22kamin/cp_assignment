@@ -179,6 +179,26 @@ The GitHub Actions pipeline automatically handles all Docker image builds and de
 
 ## Monitoring
 
+This project includes a comprehensive monitoring solution using **Prometheus** and **Grafana** deployed on ECS Fargate.
+
+### Architecture
+
+**Separate Load Balancers:**
+
+- **Main ALB**: Serves the validator service and Grafana at `/grafana`
+- **Monitoring ALB**: Dedicated ALB for Prometheus at the root path
+
+The decision to use a separate ALB for Prometheus was made to avoid subpath routing complexity. Prometheus has limited support for running under a subpath, which can cause issues with its web UI and API endpoints. Using a dedicated ALB simplifies the configuration and ensures reliable access to Prometheus.
+
+### Service Discovery
+
+Prometheus is configured to automatically discover and scrape metrics from the microservices using **AWS Cloud Map (Service Discovery)**:
+
+- Both validator and uploader services register with AWS Cloud Map
+- Prometheus uses the `ec2_sd_config` with DNS-based service discovery
+- Metrics are automatically scraped from discovered service instances
+- No manual configuration needed when services scale up or down
+
 ### Access Monitoring Tools
 
 **Grafana Dashboard:**
@@ -203,26 +223,41 @@ terraform output prometheus_url
 # Access at: http://<PROMETHEUS_ALB_DNS>
 ```
 
-### Import Dashboards
+### Custom Dashboards
 
-1. **Prometheus Self-Monitoring** (Recommended):
+The project includes **two custom Grafana dashboards** specifically designed to monitor the application services:
 
-   - In Grafana: Dashboards → Import
-   - Enter ID: `3662`
-   - Select Prometheus datasource
-   - Shows: Prometheus health, performance, metrics
+1. **Validator Service Dashboard** (`infra/files/dashboards/validator-dashboard.json`):
 
-2. **Custom Infrastructure Dashboard**:
+   - HTTP request rates and response times
+   - Token validation success/failure rates
+   - SQS message publishing metrics
+   - Error rates and status code distribution
 
-   - In Grafana: Dashboards → Import
-   - Upload: `infra/files/dashboards/infrastructure-overview.json`
+2. **Uploader Service Dashboard** (`infra/files/dashboards/uploader-dashboard.json`):
+   - SQS polling and message processing rates
+   - S3 upload success/failure metrics
+   - Processing latency and throughput
+   - Queue depth and message age
 
-3. **AWS Services** (Optional - requires CloudWatch Exporter):
-   - ECS Monitoring: ID `7362`
-   - ALB Monitoring: ID `11074`
-   - SQS Monitoring: ID `584`
+**To import custom dashboards:**
 
-See `infra/files/dashboards/README.md` for detailed monitoring setup guide.
+1. Log into Grafana
+2. Navigate to Dashboards → Import
+3. Upload the JSON files from `infra/files/dashboards/`
+4. Select the Prometheus datasource
+
+### Alerts
+
+Alert rules are configured in Prometheus (`infra/files/prometheus/alerts.yml`) to monitor critical metrics:
+
+- High error rates in validator service
+- SQS message processing failures
+- Service availability issues
+- Resource utilization thresholds
+
+**Note**: Alert rules are defined and loaded into Prometheus, but **no alert notification channels** (e.g., email, Slack, PagerDuty) are configured. This means alerts will be visible in the Prometheus UI and Grafana, but they won't trigger external notifications. In a production environment, you would configure Alertmanager with appropriate notification receivers.
+
 
 ## Cleanup
 
@@ -246,3 +281,22 @@ terraform destroy
 - API token stored securely in SSM Parameter Store
 - Secrets managed via GitHub Secrets for CI/CD
 - S3 bucket versioning enabled for state management and message storage
+
+### SSM Parameter Store Best Practice
+
+> [!IMPORTANT] > **SSM Parameter and Terraform State**: In this implementation, the API token is created and managed by Terraform in `infra/ecs_tasks.tf`. While this works for demonstration purposes, **in a production environment, the SSM parameter should be created manually (outside of Terraform)** to avoid storing the sensitive token value in the Terraform state file.
+>
+> **Recommended approach for production:**
+>
+> 1. Create the SSM parameter manually using AWS CLI or Console:
+>    ```bash
+>    aws ssm put-parameter \
+>      --name "/cp-assignment/api-token" \
+>      --value "your-secure-token-here" \
+>      --type "SecureString" \
+>      --profile CHECKPOINT
+>    ```
+> 2. Reference the existing parameter in Terraform using a `data` source instead of creating it with `aws_ssm_parameter` resource
+> 3. This ensures the sensitive token value never appears in the Terraform state file
+>
+> The current implementation prioritizes simplicity for the assignment, but be aware of this security consideration when adapting this code for production use.
