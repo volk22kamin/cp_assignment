@@ -89,6 +89,34 @@ resource "aws_security_group" "alb" {
   }
 }
 
+# Security Group for Monitoring ALB
+resource "aws_security_group" "alb_monitoring" {
+  name_prefix = "${var.project_name}-alb-monitoring-"
+  description = "Security group for Monitoring ALB"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTP from anywhere"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = {
+    Name = "${var.project_name}-alb-monitoring-sg"
+  }
+}
+
+
 resource "aws_security_group" "ecs_tasks" {
   name_prefix = "${var.project_name}-ecs-tasks-"
   description = "Security group for ECS tasks"

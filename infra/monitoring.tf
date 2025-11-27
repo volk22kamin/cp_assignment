@@ -4,13 +4,13 @@ resource "aws_security_group" "monitoring" {
   description = "Security group for monitoring services"
   vpc_id      = aws_vpc.main.id
 
-  # Prometheus port from ALB
+  # Prometheus port from Monitoring ALB
   ingress {
     from_port       = 9090
     to_port         = 9090
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-    description     = "Allow Prometheus access from ALB"
+    security_groups = [aws_security_group.alb_monitoring.id]
+    description     = "Allow Prometheus access from Monitoring ALB"
   }
 
   # Grafana port from ALB

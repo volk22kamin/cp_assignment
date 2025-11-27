@@ -46,7 +46,7 @@ output "uploader_service_name" {
 
 output "prometheus_url" {
   description = "URL to access Prometheus"
-  value       = "http://${aws_lb.main.dns_name}/prometheus"
+  value       = "http://${aws_lb.monitoring.dns_name}/"
 }
 
 output "grafana_url" {
@@ -63,5 +63,10 @@ output "grafana_admin_password" {
 output "grafana_admin_username" {
   description = "Grafana admin username"
   value       = "admin"
+}
+
+output "monitoring_alb_dns_name" {
+  description = "DNS name of the monitoring ALB"
+  value       = aws_lb.monitoring.dns_name
 }
 

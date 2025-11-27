@@ -32,28 +32,7 @@ resource "aws_lb_target_group" "validator_service" {
   }
 }
 
-# Target Group for Prometheus
-resource "aws_lb_target_group" "prometheus" {
-  name        = "${var.project_name}-prometheus-tg"
-  port        = 9090
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
 
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
-    path                = "/-/healthy"
-    matcher             = "200"
-  }
-
-  tags = {
-    Name = "${var.project_name}-prometheus-tg"
-  }
-}
 
 # Target Group for Grafana
 resource "aws_lb_target_group" "grafana" {
@@ -89,26 +68,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Listener Rule for Prometheus (path-based routing)
-resource "aws_lb_listener_rule" "prometheus" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 100
 
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.prometheus.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/prometheus", "/prometheus/*"]
-    }
-  }
-
-  tags = {
-    Name = "${var.project_name}-prometheus-rule"
-  }
-}
 
 # Listener Rule for Grafana (path-based routing)
 resource "aws_lb_listener_rule" "grafana" {
@@ -131,4 +91,53 @@ resource "aws_lb_listener_rule" "grafana" {
   }
 }
 
+# ============================================
+# MONITORING ALB (Separate from Main ALB)
+# ============================================
 
+resource "aws_lb" "monitoring" {
+  name               = "${var.project_name}-monitoring-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_monitoring.id]
+  subnets            = aws_subnet.public[*].id
+
+  tags = {
+    Name = "${var.project_name}-monitoring-alb"
+  }
+}
+
+# Target Group for Prometheus (on monitoring ALB, served at root)
+resource "aws_lb_target_group" "prometheus_monitoring" {
+  name        = "${var.project_name}-prom-mon-tg"
+  port        = 9090
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    path                = "/-/healthy"
+    matcher             = "200"
+  }
+
+  tags = {
+    Name = "${var.project_name}-prometheus-monitoring-tg"
+  }
+}
+
+# Listener for Monitoring ALB - Prometheus at root
+resource "aws_lb_listener" "monitoring_http" {
+  load_balancer_arn = aws_lb.monitoring.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.prometheus_monitoring.arn
+  }
+}

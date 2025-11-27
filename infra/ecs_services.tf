@@ -61,7 +61,7 @@ resource "aws_ecs_service" "prometheus" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.prometheus.arn
+    target_group_arn = aws_lb_target_group.prometheus_monitoring.arn
     container_name   = "prometheus"
     container_port   = 9090
   }
@@ -69,7 +69,7 @@ resource "aws_ecs_service" "prometheus" {
   health_check_grace_period_seconds = 120
 
   depends_on = [
-    aws_lb_listener_rule.prometheus
+    aws_lb_listener.monitoring_http
   ]
 
   tags = {
