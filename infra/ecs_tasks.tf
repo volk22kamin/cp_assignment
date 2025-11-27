@@ -179,7 +179,7 @@ resource "aws_ecs_task_definition" "prometheus" {
       command = [
         "sh",
         "-c",
-        "echo '${file("${path.module}/files/prometheus.yml")}' > /etc/prometheus/prometheus.yml && echo '${file("${path.module}/files/prometheus-alerts.yml")}' > /etc/prometheus/alerts.yml && echo '${file("${path.module}/files/yace-config.yml")}' > /etc/prometheus/yace-config.yml"
+        "echo '${file("${path.module}/files/prometheus.yml")}' > /etc/prometheus/prometheus.yml && echo '${file("${path.module}/files/prometheus-alerts.yml")}' > /etc/prometheus/alerts.yml"
       ]
 
       mountPoints = [
@@ -196,36 +196,6 @@ resource "aws_ecs_task_definition" "prometheus" {
           "awslogs-group"         = aws_cloudwatch_log_group.prometheus.name
           "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "config-sidecar"
-        }
-      }
-    },
-    {
-      name  = "yace-exporter"
-      image = "ghcr.io/nerdswords/yet-another-cloudwatch-exporter:v0.58.0"
-
-      portMappings = [
-        {
-          containerPort = 5000
-          protocol      = "tcp"
-        }
-      ]
-
-      mountPoints = [
-        {
-          sourceVolume  = "prometheus-config"
-          containerPath = "/tmp/config"
-          readOnly      = true
-        }
-      ]
-
-      command = ["-config.file=/tmp/config/yace-config.yml"]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.prometheus.name
-          "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "yace"
         }
       }
     }
