@@ -60,6 +60,22 @@ resource "aws_security_group" "alb" {
     description = "Allow HTTP from anywhere"
   }
 
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow Prometheus access from anywhere"
+  }
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow Grafana access from anywhere"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -70,6 +86,32 @@ resource "aws_security_group" "alb" {
 
   tags = {
     Name = "${var.project_name}-alb-sg"
+  }
+}
+
+resource "aws_security_group" "alb_monitoring" {
+  name_prefix = "${var.project_name}-alb-monitoring-"
+  description = "Security group for Monitoring ALB"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTP from anywhere"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = {
+    Name = "${var.project_name}-alb-monitoring-sg"
   }
 }
 
@@ -86,6 +128,14 @@ resource "aws_security_group" "ecs_tasks" {
     description     = "Allow traffic from ALB"
   }
 
+  ingress {
+    from_port       = 0
+    to_port         = 65535
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring.id]
+    description     = "Allow monitoring services to scrape metrics"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -97,4 +147,10 @@ resource "aws_security_group" "ecs_tasks" {
   tags = {
     Name = "${var.project_name}-ecs-tasks-sg"
   }
+}
+
+resource "aws_service_discovery_private_dns_namespace" "main" {
+  name        = "${var.project_name}.internal"
+  description = "Service discovery namespace for ${var.project_name}"
+  vpc         = aws_vpc.main.id
 }

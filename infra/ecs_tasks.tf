@@ -68,6 +68,13 @@ resource "aws_ecs_task_definition" "uploader_service" {
       name  = "uploader-service"
       image = "${aws_ecr_repository.uploader_service.repository_url}:latest"
 
+      portMappings = [
+        {
+          containerPort = 8000
+          protocol      = "tcp"
+        }
+      ]
+
       environment = [
         {
           name  = "SQS_QUEUE_URL"
@@ -98,3 +105,224 @@ resource "aws_ecs_task_definition" "uploader_service" {
     Name = "${var.project_name}-uploader-service"
   }
 }
+
+resource "aws_ecs_task_definition" "prometheus" {
+  family                   = "${var.project_name}-prometheus"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 512
+  memory                   = 1024
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.prometheus_task.arn
+
+  volume {
+    name = "prometheus-data"
+  }
+
+  volume {
+    name = "prometheus-config"
+  }
+
+  container_definitions = jsonencode([
+    {
+      name  = "prometheus"
+      image = "prom/prometheus:latest"
+
+      portMappings = [
+        {
+          containerPort = 9090
+          protocol      = "tcp"
+        }
+      ]
+
+      command = [
+        "--config.file=/etc/prometheus/prometheus.yml",
+        "--storage.tsdb.path=/prometheus",
+        "--web.console.libraries=/usr/share/prometheus/console_libraries",
+        "--web.console.templates=/usr/share/prometheus/consoles",
+        "--web.enable-lifecycle"
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "prometheus-data"
+          containerPath = "/prometheus"
+          readOnly      = false
+        },
+        {
+          sourceVolume  = "prometheus-config"
+          containerPath = "/etc/prometheus"
+          readOnly      = true
+        }
+      ]
+
+      environment = [
+        {
+          name  = "AWS_REGION"
+          value = var.aws_region
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.prometheus.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      }
+    },
+    {
+      name      = "prometheus-config-sidecar"
+      image     = "busybox:latest"
+      essential = false
+
+      command = [
+        "sh",
+        "-c",
+        "echo '${file("${path.module}/files/prometheus.yml")}' > /etc/prometheus/prometheus.yml && echo '${file("${path.module}/files/prometheus-alerts.yml")}' > /etc/prometheus/alerts.yml"
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "prometheus-config"
+          containerPath = "/etc/prometheus"
+          readOnly      = false
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.prometheus.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "config-sidecar"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name = "${var.project_name}-prometheus"
+  }
+}
+
+resource "aws_ecs_task_definition" "grafana" {
+  family                   = "${var.project_name}-grafana"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.grafana_task.arn
+
+  volume {
+    name = "grafana-provisioning"
+  }
+
+  container_definitions = jsonencode([
+    {
+      name  = "grafana"
+      image = "grafana/grafana:latest"
+
+      portMappings = [
+        {
+          containerPort = 3000
+          protocol      = "tcp"
+        }
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "grafana-provisioning"
+          containerPath = "/etc/grafana/provisioning"
+          readOnly      = false
+        }
+      ]
+
+      environment = [
+        {
+          name  = "GF_SERVER_ROOT_URL"
+          value = "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+        },
+        {
+          name  = "GF_SERVER_SERVE_FROM_SUB_PATH"
+          value = "true"
+        },
+        {
+          name  = "GF_SECURITY_ADMIN_USER"
+          value = "admin"
+        },
+        {
+          name  = "GF_AUTH_ANONYMOUS_ENABLED"
+          value = "false"
+        }
+      ]
+
+      secrets = [
+        {
+          name      = "GF_SECURITY_ADMIN_PASSWORD"
+          valueFrom = aws_ssm_parameter.grafana_admin_password.arn
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.grafana.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      }
+    },
+    {
+      name      = "grafana-config-sidecar"
+      image     = "busybox:latest"
+      essential = false
+
+      command = [
+        "sh",
+        "-c",
+        "mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards && echo '${replace(file("${path.module}/files/grafana-datasource.yml"), "<MONITORING_ALB_DNS>", aws_lb.monitoring.dns_name)}' > /etc/grafana/provisioning/datasources/datasource.yml && echo '${file("${path.module}/files/grafana-dashboard-provider.yml")}' > /etc/grafana/provisioning/dashboards/dashboard-provider.yml && echo '${file("${path.module}/files/validator-dashboard.json")}' > /etc/grafana/provisioning/dashboards/validator-dashboard.json && echo '${file("${path.module}/files/uploader-dashboard.json")}' > /etc/grafana/provisioning/dashboards/uploader-dashboard.json"
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "grafana-provisioning"
+          containerPath = "/etc/grafana/provisioning"
+          readOnly      = false
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.grafana.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "config-sidecar"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name = "${var.project_name}-grafana"
+  }
+}
+

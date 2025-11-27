@@ -129,3 +129,107 @@ resource "aws_iam_role_policy" "uploader_task" {
     ]
   })
 }
+
+resource "aws_iam_role" "prometheus_task" {
+  name = "${var.project_name}-prometheus-task"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${var.project_name}-prometheus-task"
+  }
+}
+
+resource "aws_iam_role_policy" "prometheus_task" {
+  name = "${var.project_name}-prometheus-task-policy"
+  role = aws_iam_role.prometheus_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:ListTasks",
+          "ecs:DescribeTasks",
+          "ecs:DescribeContainerInstances",
+          "ec2:DescribeInstances"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricStatistics",
+          "tag:GetResources"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "grafana_task" {
+  name = "${var.project_name}-grafana-task"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${var.project_name}-grafana-task"
+  }
+}
+
+resource "aws_iam_role_policy" "ecs_task_execution_ssm" {
+  name = "${var.project_name}-ecs-task-execution-ssm"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          aws_ssm_parameter.grafana_admin_password.arn
+        ]
+      }
+    ]
+  })
+}
+

@@ -13,9 +13,9 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "cp-assignment-tfstate-dev-371670420772"
-    key    = "terraform.tfstate"
-    region = "us-east-1"
+    bucket  = "cp-assignment-tfstate-dev-371670420772"
+    key     = "terraform.tfstate"
+    region  = "us-east-1"
     encrypt = true
   }
 }

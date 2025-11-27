@@ -177,6 +177,53 @@ The GitHub Actions pipeline automatically handles all Docker image builds and de
 - Changes are made to the pipeline configuration
 - Manual workflow dispatch is triggered
 
+## Monitoring
+
+### Access Monitoring Tools
+
+**Grafana Dashboard:**
+
+```bash
+# Get Grafana URL
+terraform output grafana_url
+
+# Get admin password
+terraform output -raw grafana_admin_password
+
+# Access at: http://<ALB_DNS>/grafana
+# Username: admin
+```
+
+**Prometheus:**
+
+```bash
+# Get Prometheus URL
+terraform output prometheus_url
+
+# Access at: http://<PROMETHEUS_ALB_DNS>
+```
+
+### Import Dashboards
+
+1. **Prometheus Self-Monitoring** (Recommended):
+
+   - In Grafana: Dashboards → Import
+   - Enter ID: `3662`
+   - Select Prometheus datasource
+   - Shows: Prometheus health, performance, metrics
+
+2. **Custom Infrastructure Dashboard**:
+
+   - In Grafana: Dashboards → Import
+   - Upload: `infra/files/dashboards/infrastructure-overview.json`
+
+3. **AWS Services** (Optional - requires CloudWatch Exporter):
+   - ECS Monitoring: ID `7362`
+   - ALB Monitoring: ID `11074`
+   - SQS Monitoring: ID `584`
+
+See `infra/files/dashboards/README.md` for detailed monitoring setup guide.
+
 ## Cleanup
 
 ```bash
