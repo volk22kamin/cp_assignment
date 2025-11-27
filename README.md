@@ -249,12 +249,25 @@ The project includes **two custom Grafana dashboards** specifically designed to 
    - Processing latency and throughput
    - Queue depth and message age
 
-**To import custom dashboards:**
+**Automatic Dashboard Provisioning:**
 
-1. Log into Grafana
-2. Navigate to Dashboards → Import
-3. Upload the JSON files from `infra/files/dashboards/`
-4. Select the Prometheus datasource
+Dashboards are automatically provisioned from JSON files in the `infra/files/` directory. To add new dashboards:
+
+1. Place your dashboard JSON file in `infra/files/`
+2. The dashboard will be automatically loaded when Grafana starts
+3. No manual import needed - Grafana is configured to scan this directory
+
+**Manual Datasource Configuration:**
+
+> [!NOTE]
+> After Grafana starts, you need to **manually configure the Prometheus datasource URL** in the Grafana GUI:
+>
+> 1. Log into Grafana
+> 2. Navigate to **Configuration** → **Data Sources** → **Prometheus**
+> 3. Update the URL field with the Prometheus DNS (get it from `terraform output prometheus_url`)
+> 4. Click **Save & Test** to verify the connection
+>
+> This manual step is required because the Prometheus ALB DNS is dynamically generated and cannot be pre-configured in the datasource YAML file.
 
 ### Alerts
 
