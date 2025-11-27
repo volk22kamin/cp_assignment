@@ -23,33 +23,42 @@ The system consists of:
 ```
 .
 ├── app/
-│   ├── validator-service/    # REST API service
-│   │   ├── app.py
+│   ├── validator-service/         # REST API service
+│   │   ├── app.py                 # Flask app with Prometheus metrics
 │   │   ├── Dockerfile
 │   │   └── requirements.txt
-│   └── uploader-service/     # SQS to S3 worker
-│       ├── app.py
+│   └── uploader-service/          # SQS to S3 worker
+│       ├── app.py                 # Worker with Prometheus metrics
 │       ├── Dockerfile
 │       └── requirements.txt
-├── infra/                    # Terraform infrastructure
-│   ├── backend-s3/           # S3 backend for Terraform state (stores state locally)
+├── infra/                         # Terraform infrastructure
+│   ├── backend-s3/                # S3 backend for Terraform state (stores state locally)
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   ├── locals.tf
 │   │   └── outputs.tf
+│   ├── files/                     # Configuration files for monitoring
+│   │   ├── prometheus.yml         # Prometheus config with service discovery
+│   │   ├── prometheus-alerts.yml  # Alert rules for Prometheus
+│   │   ├── grafana-datasource.yml # Grafana datasource configuration
+│   │   ├── grafana-dashboard-provider.yml
+│   │   ├── validator-dashboard.json    # Custom Validator dashboard
+│   │   └── uploader-dashboard.json     # Custom Uploader dashboard
 │   ├── provider.tf
 │   ├── variables.tf
-│   ├── network.tf
-│   ├── storage.tf
-│   ├── ecr.tf
-│   ├── iam.tf
-│   ├── ecs_tasks.tf
-│   ├── alb.tf
-│   ├── ecs_services.tf
+│   ├── network.tf                 # VPC, subnets, security groups
+│   ├── storage.tf                 # S3 bucket, SQS queue
+│   ├── ecr.tf                     # ECR repositories
+│   ├── iam.tf                     # IAM roles and policies
+│   ├── ecs_tasks.tf               # ECS task definitions (app + monitoring)
+│   ├── alb.tf                     # Application Load Balancers (main + monitoring)
+│   ├── ecs_services.tf            # ECS services
+│   ├── monitoring.tf              # Service discovery namespace
 │   └── outputs.tf
 └── .github/
     └── workflows/
-        └── pipeline.yml      # CI/CD pipeline
+        ├── validator-pipeline.yml # CI/CD for validator service
+        └── uploader-pipeline.yml  # CI/CD for uploader service
 ```
 
 ## Infrastructure State Management
@@ -257,7 +266,6 @@ Alert rules are configured in Prometheus (`infra/files/prometheus/alerts.yml`) t
 - Resource utilization thresholds
 
 **Note**: Alert rules are defined and loaded into Prometheus, but **no alert notification channels** (e.g., email, Slack, PagerDuty) are configured. This means alerts will be visible in the Prometheus UI and Grafana, but they won't trigger external notifications. In a production environment, you would configure Alertmanager with appropriate notification receivers.
-
 
 ## Cleanup
 
