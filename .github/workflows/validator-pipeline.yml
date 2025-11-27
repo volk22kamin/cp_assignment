@@ -1,0 +1,105 @@
+name: Validator Service CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "app/validator-service/**"
+      - ".github/workflows/validator-pipeline.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: cp-assignment-cluster
+  SERVICE_NAME: validator-service
+  SERVICE_PATH: app/validator-service
+  ECR_REPO: cp-assignment/validator-service
+  ECS_SERVICE: cp-assignment-validator-service
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and tag image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ${{ env.SERVICE_PATH }}
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:${IMAGE_TAG} .
+          docker tag  ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:${IMAGE_TAG} \
+                      ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:latest
+
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:${{ github.sha }}
+          format: "sarif"
+          output: "trivy-${{ env.SERVICE_NAME }}.sarif"
+          severity: "CRITICAL"
+          exit-code: "0" # Soft fail (does not break pipeline)
+
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-${{ env.SERVICE_NAME }}.sarif"
+          category: "trivy-${{ env.SERVICE_NAME }}"
+
+      - name: Upload Trivy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ env.SERVICE_NAME }}-${{ github.sha }}
+          path: "trivy-${{ env.SERVICE_NAME }}.sarif"
+          retention-days: 30
+
+      - name: Push image
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:${{ github.sha }}
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster  ${{ env.ECS_CLUSTER }} \
+            --service  ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for ECS stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }}
