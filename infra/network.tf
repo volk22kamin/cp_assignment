@@ -142,7 +142,7 @@ resource "aws_security_group" "ecs_tasks" {
 }
 
 resource "aws_service_discovery_private_dns_namespace" "main" {
-  name        = "${var.project_name}.local"
+  name        = "${var.project_name}.internal"
   description = "Service discovery namespace for ${var.project_name}"
   vpc         = aws_vpc.main.id
 }

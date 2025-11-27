@@ -10,8 +10,6 @@ resource "aws_service_discovery_service" "validator_service" {
     }
   }
 
-  health_check_custom_config {
-  }
 }
 
 resource "aws_service_discovery_service" "uploader_service" {
@@ -26,8 +24,6 @@ resource "aws_service_discovery_service" "uploader_service" {
     }
   }
 
-  health_check_custom_config {
-  }
 }
 
 resource "aws_ecs_service" "validator_service" {
@@ -114,6 +110,8 @@ resource "aws_ecs_service" "prometheus" {
   tags = {
     Name = "${var.project_name}-prometheus"
   }
+
+  enable_execute_command = true
 }
 
 resource "aws_ecs_service" "grafana" {

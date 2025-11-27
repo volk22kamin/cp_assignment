@@ -15,7 +15,7 @@ scrape_configs:
   - job_name: "validator-service"
     dns_sd_configs:
       - names:
-          - validator-service.cp-assignment.local
+          - validator-service.cp-assignment.internal
         type: "A"
         port: 8080
 
@@ -23,7 +23,7 @@ scrape_configs:
   - job_name: "uploader-service"
     dns_sd_configs:
       - names:
-          - uploader-service.cp-assignment.local
+          - uploader-service.cp-assignment.internal
         type: "A"
         port: 8000
 
