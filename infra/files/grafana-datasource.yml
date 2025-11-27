@@ -1,0 +1,16 @@
+apiVersion: 1
+
+# NOTE: This is a reference configuration.
+# After deployment, configure the Prometheus datasource in Grafana UI with:
+# URL: http://<monitoring-alb-dns>/
+# You can get the monitoring ALB DNS from: terraform output monitoring_alb_dns_name
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://<MONITORING_ALB_DNS>/
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"

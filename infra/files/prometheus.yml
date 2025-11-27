@@ -1,0 +1,33 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "cp-assignment"
+    environment: "production"
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "validator-service"
+    dns_sd_configs:
+      - names:
+          - validator-service.cp-assignment.internal
+        type: "A"
+        port: 8080
+
+  - job_name: "uploader-service"
+    dns_sd_configs:
+      - names:
+          - uploader-service.cp-assignment.internal
+        type: "A"
+        port: 8000
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "/etc/prometheus/alerts.yml"
