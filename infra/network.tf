@@ -128,6 +128,14 @@ resource "aws_security_group" "ecs_tasks" {
     description     = "Allow traffic from ALB"
   }
 
+  ingress {
+    from_port       = 0
+    to_port         = 65535
+    protocol        = "tcp"
+    security_groups = [aws_security_group.monitoring.id]
+    description     = "Allow monitoring services to scrape metrics"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -145,14 +153,4 @@ resource "aws_service_discovery_private_dns_namespace" "main" {
   name        = "${var.project_name}.internal"
   description = "Service discovery namespace for ${var.project_name}"
   vpc         = aws_vpc.main.id
-}
-
-resource "aws_security_group_rule" "ecs_tasks_monitoring_ingress" {
-  type                     = "ingress"
-  from_port                = 0
-  to_port                  = 65535
-  protocol                 = "tcp"
-  source_security_group_id = aws_security_group.monitoring.id
-  security_group_id        = aws_security_group.ecs_tasks.id
-  description              = "Allow monitoring services to scrape metrics"
 }
