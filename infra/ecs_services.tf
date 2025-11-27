@@ -1,3 +1,35 @@
+resource "aws_service_discovery_service" "validator_service" {
+  name = "validator-service"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+
+  health_check_custom_config {
+  }
+}
+
+resource "aws_service_discovery_service" "uploader_service" {
+  name = "uploader-service"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.main.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+  }
+
+  health_check_custom_config {
+  }
+}
+
 resource "aws_ecs_service" "validator_service" {
   name            = "${var.project_name}-validator-service"
   cluster         = aws_ecs_cluster.main.id
@@ -15,6 +47,10 @@ resource "aws_ecs_service" "validator_service" {
     target_group_arn = aws_lb_target_group.validator_service.arn
     container_name   = "validator-service"
     container_port   = var.validator_service_port
+  }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.validator_service.arn
   }
 
   health_check_grace_period_seconds = 60
@@ -41,12 +77,15 @@ resource "aws_ecs_service" "uploader_service" {
     assign_public_ip = true
   }
 
+  service_registries {
+    registry_arn = aws_service_discovery_service.uploader_service.arn
+  }
+
   tags = {
     Name = "${var.project_name}-uploader-service"
   }
 }
 
-# Prometheus ECS Service
 resource "aws_ecs_service" "prometheus" {
   name            = "${var.project_name}-prometheus"
   cluster         = aws_ecs_cluster.main.id
@@ -77,7 +116,6 @@ resource "aws_ecs_service" "prometheus" {
   }
 }
 
-# Grafana ECS Service
 resource "aws_ecs_service" "grafana" {
   name            = "${var.project_name}-grafana"
   cluster         = aws_ecs_cluster.main.id

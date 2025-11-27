@@ -1,10 +1,8 @@
-# Security Group for Monitoring Services (Prometheus & Grafana)
 resource "aws_security_group" "monitoring" {
   name_prefix = "${var.project_name}-monitoring-"
   description = "Security group for monitoring services"
   vpc_id      = aws_vpc.main.id
 
-  # Prometheus port from Monitoring ALB
   ingress {
     from_port       = 9090
     to_port         = 9090
@@ -13,7 +11,6 @@ resource "aws_security_group" "monitoring" {
     description     = "Allow Prometheus access from Monitoring ALB"
   }
 
-  # Grafana port from ALB
   ingress {
     from_port       = 3000
     to_port         = 3000
@@ -22,7 +19,6 @@ resource "aws_security_group" "monitoring" {
     description     = "Allow Grafana access from ALB"
   }
 
-  # Allow Prometheus to scrape itself
   ingress {
     from_port   = 9090
     to_port     = 9090
@@ -44,7 +40,6 @@ resource "aws_security_group" "monitoring" {
   }
 }
 
-# CloudWatch Log Group for Prometheus
 resource "aws_cloudwatch_log_group" "prometheus" {
   name              = "/ecs/${var.project_name}/prometheus"
   retention_in_days = 7
@@ -54,7 +49,6 @@ resource "aws_cloudwatch_log_group" "prometheus" {
   }
 }
 
-# CloudWatch Log Group for Grafana
 resource "aws_cloudwatch_log_group" "grafana" {
   name              = "/ecs/${var.project_name}/grafana"
   retention_in_days = 7
@@ -64,7 +58,6 @@ resource "aws_cloudwatch_log_group" "grafana" {
   }
 }
 
-# SSM Parameter for Grafana admin password
 resource "random_password" "grafana_admin" {
   length  = 16
   special = true

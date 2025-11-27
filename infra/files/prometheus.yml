@@ -11,24 +11,21 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  # Validator service - using static config for now
-  # Will be discovered via ECS service discovery
+  # Validator service
   - job_name: "validator-service"
-    static_configs:
-      - targets: []
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: "validator-service"
+    dns_sd_configs:
+      - names:
+          - validator-service.cp-assignment.local
+        type: "A"
+        port: 8080
 
-  # Uploader service - using static config for now
+  # Uploader service
   - job_name: "uploader-service"
-    static_configs:
-      - targets: []
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: "uploader-service"
+    dns_sd_configs:
+      - names:
+          - uploader-service.cp-assignment.local
+        type: "A"
+        port: 8000
 
 alerting:
   alertmanagers:

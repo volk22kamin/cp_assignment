@@ -89,7 +89,6 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# Security Group for Monitoring ALB
 resource "aws_security_group" "alb_monitoring" {
   name_prefix = "${var.project_name}-alb-monitoring-"
   description = "Security group for Monitoring ALB"
@@ -116,7 +115,6 @@ resource "aws_security_group" "alb_monitoring" {
   }
 }
 
-
 resource "aws_security_group" "ecs_tasks" {
   name_prefix = "${var.project_name}-ecs-tasks-"
   description = "Security group for ECS tasks"
@@ -141,4 +139,20 @@ resource "aws_security_group" "ecs_tasks" {
   tags = {
     Name = "${var.project_name}-ecs-tasks-sg"
   }
+}
+
+resource "aws_service_discovery_private_dns_namespace" "main" {
+  name        = "${var.project_name}.local"
+  description = "Service discovery namespace for ${var.project_name}"
+  vpc         = aws_vpc.main.id
+}
+
+resource "aws_security_group_rule" "ecs_tasks_monitoring_ingress" {
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.monitoring.id
+  security_group_id        = aws_security_group.ecs_tasks.id
+  description              = "Allow monitoring services to scrape metrics"
 }

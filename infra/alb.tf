@@ -32,9 +32,6 @@ resource "aws_lb_target_group" "validator_service" {
   }
 }
 
-
-
-# Target Group for Grafana
 resource "aws_lb_target_group" "grafana" {
   name        = "${var.project_name}-grafana-tg"
   port        = 3000
@@ -68,9 +65,6 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-
-
-# Listener Rule for Grafana (path-based routing)
 resource "aws_lb_listener_rule" "grafana" {
   listener_arn = aws_lb_listener.http.arn
   priority     = 101
@@ -91,10 +85,6 @@ resource "aws_lb_listener_rule" "grafana" {
   }
 }
 
-# ============================================
-# MONITORING ALB (Separate from Main ALB)
-# ============================================
-
 resource "aws_lb" "monitoring" {
   name               = "${var.project_name}-monitoring-alb"
   internal           = false
@@ -107,7 +97,6 @@ resource "aws_lb" "monitoring" {
   }
 }
 
-# Target Group for Prometheus (on monitoring ALB, served at root)
 resource "aws_lb_target_group" "prometheus_monitoring" {
   name        = "${var.project_name}-prom-mon-tg"
   port        = 9090
@@ -130,7 +119,6 @@ resource "aws_lb_target_group" "prometheus_monitoring" {
   }
 }
 
-# Listener for Monitoring ALB - Prometheus at root
 resource "aws_lb_listener" "monitoring_http" {
   load_balancer_arn = aws_lb.monitoring.arn
   port              = "80"

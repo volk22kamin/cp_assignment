@@ -68,6 +68,13 @@ resource "aws_ecs_task_definition" "uploader_service" {
       name  = "uploader-service"
       image = "${aws_ecr_repository.uploader_service.repository_url}:latest"
 
+      portMappings = [
+        {
+          containerPort = 8000
+          protocol      = "tcp"
+        }
+      ]
+
       environment = [
         {
           name  = "SQS_QUEUE_URL"
@@ -99,7 +106,6 @@ resource "aws_ecs_task_definition" "uploader_service" {
   }
 }
 
-# Prometheus Task Definition
 resource "aws_ecs_task_definition" "prometheus" {
   family                   = "${var.project_name}-prometheus"
   network_mode             = "awsvpc"
@@ -109,8 +115,6 @@ resource "aws_ecs_task_definition" "prometheus" {
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
   task_role_arn            = aws_iam_role.prometheus_task.arn
 
-  # Using ephemeral storage instead of EFS for simplicity
-  # Data will be lost on container restart, but acceptable for dev/demo
   volume {
     name = "prometheus-data"
   }
@@ -206,7 +210,6 @@ resource "aws_ecs_task_definition" "prometheus" {
   }
 }
 
-# Grafana Task Definition
 resource "aws_ecs_task_definition" "grafana" {
   family                   = "${var.project_name}-grafana"
   network_mode             = "awsvpc"
